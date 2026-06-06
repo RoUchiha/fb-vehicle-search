@@ -3,7 +3,13 @@ uvicorn[standard]>=0.30.0
 pydantic>=2.7.0
 httpx>=0.27.0
 playwright>=1.44.0
-anthropic>=0.28.0
 aiosqlite>=0.20.0
 python-dotenv>=1.0.0
 slowapi>=0.1.9
+
+# AI providers — install at least one:
+# Free:
+#   groq   → pip install groq     (or just set GROQ_API_KEY; uses httpx, no extra package needed)
+#   gemini → set GEMINI_API_KEY   (uses httpx, no extra package needed)
+# Paid:
+anthropic>=0.28.0

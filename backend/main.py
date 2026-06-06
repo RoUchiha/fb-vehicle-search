@@ -46,8 +46,16 @@ limiter = Limiter(key_func=get_remote_address)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Fail fast if required env vars are missing
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        raise RuntimeError("ANTHROPIC_API_KEY is not set")
+    ai_key = (
+        os.getenv("GROQ_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+        or os.getenv("ANTHROPIC_API_KEY")
+    )
+    if not ai_key:
+        raise RuntimeError(
+            "No AI provider key found. Set GROQ_API_KEY (free), "
+            "GEMINI_API_KEY (free), or ANTHROPIC_API_KEY (paid)."
+        )
     if not os.getenv("API_KEY"):
         raise RuntimeError("API_KEY is not set — refusing to start unauthenticated")
     await cache.init_db()

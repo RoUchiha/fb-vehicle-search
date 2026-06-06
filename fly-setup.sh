@@ -21,9 +21,14 @@ fly volumes create vehicle_data \
 echo ""
 echo "==> Setting secrets..."
 echo "    You'll be prompted for each value."
+echo "    AI provider auto-detected: GROQ_API_KEY > GEMINI_API_KEY > ANTHROPIC_API_KEY"
 echo ""
 
-read -rp "  ANTHROPIC_API_KEY (sk-ant-...): " ANTHROPIC_KEY
+echo "  --- AI Provider (set ONE, leave others blank) ---"
+read -rp "  GROQ_API_KEY    (FREE — https://console.groq.com): " GROQ_KEY
+read -rp "  GEMINI_API_KEY  (FREE — https://aistudio.google.com): " GEMINI_KEY
+read -rp "  ANTHROPIC_API_KEY (PAID — https://console.anthropic.com): " ANTHROPIC_KEY
+echo ""
 read -rp "  API_KEY (random secret — press Enter to generate): " API_KEY_VAL
 if [ -z "$API_KEY_VAL" ]; then
   API_KEY_VAL=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
@@ -34,13 +39,15 @@ read -rp "  ALLOWED_ORIGINS (your Vercel URL, e.g. https://frontend-kappa-three-
 
 fly secrets set \
   --app "$APP" \
-  ANTHROPIC_API_KEY="$ANTHROPIC_KEY" \
   API_KEY="$API_KEY_VAL" \
   ALLOWED_ORIGINS="$ORIGINS" \
   FB_PROFILE_PATH="/data/fb-profile" \
   CACHE_DB_PATH="/data/cache.db" \
   ENV="production" \
-  FB_HEADLESS="true"
+  FB_HEADLESS="true" \
+  ${GROQ_KEY:+GROQ_API_KEY="$GROQ_KEY"} \
+  ${GEMINI_KEY:+GEMINI_API_KEY="$GEMINI_KEY"} \
+  ${ANTHROPIC_KEY:+ANTHROPIC_API_KEY="$ANTHROPIC_KEY"}
 
 echo ""
 echo "==> Deploying backend..."
