@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Car, Sun, Moon, Bookmark, BookmarkCheck, X } from "lucide-react";
+import { Car, Sun, Moon, Bookmark, BookmarkCheck, X, FlaskConical } from "lucide-react";
 import type { SearchParams, Listing } from "./types";
 import { searchListings, pollJob } from "./api";
+
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true" || !import.meta.env.VITE_API_KEY;
 import SearchForm from "./components/SearchForm";
 import ListingGrid from "./components/ListingGrid";
 import ComparisonTray from "./components/ComparisonTray";
@@ -282,6 +284,19 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Demo mode banner */}
+      {DEMO_MODE && (
+        <div className="shrink-0 bg-violet-600 dark:bg-violet-700 text-white text-xs px-4 py-2 flex items-center justify-center gap-2 no-print">
+          <FlaskConical className="w-3.5 h-3.5 shrink-0" />
+          <span>
+            <strong>Demo mode</strong> — showing sample listings with pre-computed AI analysis. To search live FB Marketplace,{" "}
+            <a href="https://github.com/RoUchiha/fb-vehicle-search#backend-setup" target="_blank" rel="noopener noreferrer" className="underline hover:text-violet-200">
+              run the backend locally
+            </a>.
+          </span>
+        </div>
+      )}
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden max-w-screen-2xl mx-auto w-full">

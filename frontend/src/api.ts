@@ -1,10 +1,14 @@
 import type { SearchParams, Listing, AnalysisResult, SseEvent, JobResponse } from "./types";
+import { MOCK_LISTINGS, getMockAnalysisStream } from "./demo/mockData";
 
 const BASE = "/api";
 const REQUEST_TIMEOUT_MS = 90_000; // 90 s — scrape can be slow
 
 // API key loaded once from env at build time (Vite exposes VITE_* vars)
 const API_KEY = import.meta.env.VITE_API_KEY ?? "";
+
+// Demo mode: active when VITE_DEMO_MODE=true (set on Vercel) or when no API key is configured
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true" || !API_KEY;
 
 function apiHeaders(): HeadersInit {
   return {
@@ -27,9 +31,78 @@ export function isSafeUrl(url: string): boolean {
   }
 }
 
+/** Filter mock listings by search params for a realistic demo experience. */
+function filterMockListings(params: SearchParams): Listing[] {
+  let results = [...MOCK_LISTINGS];
+
+  if (params.make) {
+    results = results.filter((l) =>
+      l.make?.toLowerCase().includes(params.make!.toLowerCase())
+    );
+  }
+  if (params.model) {
+    results = results.filter((l) =>
+      l.model?.toLowerCase().includes(params.model!.toLowerCase())
+    );
+  }
+  if (params.year_min) {
+    const min = parseInt(params.year_min, 10);
+    results = results.filter((l) => !l.year || l.year >= min);
+  }
+  if (params.year_max) {
+    const max = parseInt(params.year_max, 10);
+    results = results.filter((l) => !l.year || l.year <= max);
+  }
+  if (params.price_min) {
+    const min = parseInt(params.price_min, 10);
+    results = results.filter((l) => !l.price || l.price >= min);
+  }
+  if (params.price_max) {
+    const max = parseInt(params.price_max, 10);
+    results = results.filter((l) => !l.price || l.price <= max);
+  }
+  if (params.mileage_max) {
+    const max = parseInt(params.mileage_max, 10);
+    results = results.filter((l) => !l.mileage || l.mileage <= max);
+  }
+  if (params.transmission && params.transmission !== "any") {
+    results = results.filter(
+      (l) =>
+        !l.decoded_vin?.transmission ||
+        l.decoded_vin.transmission.toLowerCase().includes(params.transmission!)
+    );
+  }
+
+  // Sort
+  if (params.sort_by === "price_asc") {
+    results.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+  } else if (params.sort_by === "price_desc") {
+    results.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+  } else if (params.sort_by === "mileage_asc") {
+    results.sort((a, b) => (a.mileage ?? 0) - (b.mileage ?? 0));
+  } else {
+    // Default: sort by deal score
+    results.sort((a, b) => (b.quick_score ?? 0) - (a.quick_score ?? 0));
+  }
+
+  return results;
+}
+
 export async function searchListings(
   params: SearchParams
 ): Promise<{ listings: Listing[]; total: number; cached: boolean; scraped_at: string | null; job_id?: string; status?: string }> {
+  if (DEMO_MODE) {
+    // Simulate a realistic 1.5s scrape delay
+    await new Promise((r) => setTimeout(r, 1500));
+    const listings = filterMockListings(params);
+    return {
+      listings,
+      total: listings.length,
+      cached: false,
+      scraped_at: new Date().toISOString(),
+    };
+  }
+
   const res = await fetch(`${BASE}/search`, {
     method: "POST",
     headers: apiHeaders(),
@@ -47,7 +120,6 @@ export async function searchListings(
   });
 
   if (res.status === 202) {
-    // Background job started
     const data = await res.json();
     return { listings: [], total: 0, cached: false, scraped_at: null, job_id: data.job_id, status: "pending" };
   }
@@ -74,12 +146,19 @@ export async function analyzeListingStream(
   onResult: (result: AnalysisResult) => void,
   onError: (msg: string) => void
 ): Promise<void> {
+  if (DEMO_MODE) {
+    // Simulate 500ms startup delay then stream mock analysis
+    await new Promise((r) => setTimeout(r, 500));
+    getMockAnalysisStream(listing.vin ?? "", onChunk, onResult);
+    return;
+  }
+
   let res: Response;
   try {
     res = await fetch(`${BASE}/analyze`, {
       method: "POST",
       headers: apiHeaders(),
-      signal: withTimeout(120_000), // analysis can take up to 2 min
+      signal: withTimeout(120_000),
       body: JSON.stringify({ listing_id: listing.listing_id, listing }),
     });
   } catch (e) {
@@ -88,7 +167,6 @@ export async function analyzeListingStream(
   }
 
   if (!res.ok || !res.body) {
-    // Only show a safe generic message — do not echo server error details to the user
     onError("Analysis unavailable. Please try again.");
     return;
   }
@@ -124,6 +202,7 @@ export async function analyzeListingStream(
 }
 
 export async function getHistory(vin: string) {
+  if (DEMO_MODE) return null;
   const res = await fetch(`${BASE}/history/${encodeURIComponent(vin)}`, {
     headers: apiHeaders(),
     signal: withTimeout(15_000),
