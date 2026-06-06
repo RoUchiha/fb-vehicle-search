@@ -199,9 +199,9 @@ async def _do_search(params: SearchParams) -> dict:
 # ---------------------------------------------------------------------------
 
 @app.get("/api/health")
-@limiter.limit("20/minute")
-async def health(request: Request, _: None = Depends(verify_api_key)):
-    """Minimal health probe — reveals no capability details."""
+@limiter.limit("60/minute")
+async def health(request: Request):
+    """Minimal health probe — no API key required so Fly/Railway can probe it."""
     return {"status": "ok"}
 
 

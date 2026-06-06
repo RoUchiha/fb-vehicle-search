@@ -1,7 +1,12 @@
 import type { SearchParams, Listing, AnalysisResult, SseEvent, JobResponse } from "./types";
 import { MOCK_LISTINGS, getMockAnalysisStream } from "./demo/mockData";
 
-const BASE = "/api";
+// If VITE_API_BASE_URL is set (e.g. https://fb-vehicle-search-api.fly.dev),
+// use it — otherwise fall back to relative /api (proxied by Vite in dev)
+const BASE = import.meta.env.VITE_API_BASE_URL
+  ? `${import.meta.env.VITE_API_BASE_URL}/api`
+  : "/api";
+
 const REQUEST_TIMEOUT_MS = 90_000; // 90 s — scrape can be slow
 
 // API key loaded once from env at build time (Vite exposes VITE_* vars)

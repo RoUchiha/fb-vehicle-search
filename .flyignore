@@ -1,0 +1,11 @@
+frontend/
+frontend/node_modules/
+frontend/dist/
+*.db
+fb-profile/
+backend/fb-profile/
+**/__pycache__/
+**/*.pyc
+.env
+backend/.env
+.git/

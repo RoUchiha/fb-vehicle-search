@@ -1,0 +1,49 @@
+# fly.toml — FB Vehicle Search backend
+# Deploy with: fly deploy (from the repo root)
+
+app = "fb-vehicle-search-api"
+primary_region = "dfw"          # Dallas — change to nearest: iad, ord, sea, lax, mia
+
+[build]
+  dockerfile = "backend/Dockerfile"
+  ignorefile = ".flyignore"
+
+[env]
+  PORT         = "8000"
+  ENV          = "production"
+  FB_HEADLESS  = "true"
+  # Paths on the persistent volume:
+  FB_PROFILE_PATH = "/data/fb-profile"
+  CACHE_DB_PATH   = "/data/cache.db"
+  LOG_LEVEL       = "INFO"
+  # ANTHROPIC_API_KEY, API_KEY, ALLOWED_ORIGINS → set via `fly secrets set`
+
+[http_service]
+  internal_port       = 8000
+  force_https         = true
+  auto_stop_machines  = "stop"      # suspends when idle to save cost
+  auto_start_machines = true        # wakes on first request (~2s cold start)
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type       = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  size   = "shared-cpu-1x"    # 256MB RAM — upgrade to performance-1x if Playwright OOMs
+  memory = "512mb"
+
+[[mounts]]
+  source      = "vehicle_data"    # `fly volumes create vehicle_data` creates this
+  destination = "/data"
+  initial_size = "3gb"            # FB profile + SQLite cache
+
+[checks]
+  [checks.health]
+    port     = 8000
+    type     = "http"
+    interval = "30s"
+    timeout  = "5s"
+    path     = "/api/health"
+    headers  = {}                 # health endpoint requires API key — open it or add header here
